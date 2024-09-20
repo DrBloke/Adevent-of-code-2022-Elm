@@ -52,10 +52,10 @@ type Model
 init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
-        { url } =
+        { url, storedData } =
             case Decode.decodeValue decode flags of
                 Ok flagsJson ->
-                    flagsJson
+                    flagsJson |> Debug.log "flags"
 
                 Err _ ->
                     { url = "", storedData = Nothing }
@@ -65,7 +65,7 @@ init flags =
             Update.pure
                 (PageModel
                     { pageConfig = config
-                    , inputData = Types.defaultInput config
+                    , inputData = Maybe.withDefault (Types.defaultInput config) storedData
                     , expandedItems = Set.fromList [ "input-data" ]
                     }
                 )
@@ -88,16 +88,32 @@ type Msg
     | NoOp
 
 
+addCmd : Cmd msg -> ( model, Cmd msg ) -> ( model, Cmd msg )
+addCmd cmd ( model, oldCmd ) =
+    ( model, Cmd.batch [ oldCmd, cmd ] )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model_ =
     case model_ of
         PageModel model ->
             case msg of
                 UrlChanged page ->
+                    let
+                        _ =
+                            Debug.log "pagePage" page
+                    in
                     init page
 
                 TextareaMsg value ->
                     Update.pure (PageModel { model | inputData = value })
+                        |> (encocdeStoredData
+                                { pathName = Types.identifier model.pageConfig
+                                , data = value
+                                }
+                                |> setStorage
+                                |> addCmd
+                           )
 
                 ToggleAccordionItem identifier ->
                     Update.pure
@@ -116,6 +132,10 @@ update msg model_ =
         IndexModel ->
             case msg of
                 UrlChanged page ->
+                    let
+                        _ =
+                            Debug.log "index" page
+                    in
                     init page
 
                 _ ->
@@ -222,11 +242,25 @@ type alias Flags =
     }
 
 
+type alias StoredData =
+    { pathName : String
+    , data : String
+    }
+
+
 encode : Flags -> Encode.Value
 encode flags =
     Encode.object
         [ ( "url", Encode.string flags.url )
         , ( "storedData", Maybe.unwrap Encode.null Encode.string flags.storedData )
+        ]
+
+
+encocdeStoredData : StoredData -> Encode.Value
+encocdeStoredData storedData =
+    Encode.object
+        [ ( "pathName", Encode.string storedData.pathName )
+        , ( "data", Encode.string storedData.data )
         ]
 
 
@@ -244,4 +278,7 @@ decode =
 port onUrlChange : (Encode.Value -> msg) -> Sub msg
 
 
-port pushUrl : String -> Cmd msg
+port pushUrl : Encode.Value -> Cmd msg
+
+
+port setStorage : Encode.Value -> Cmd msg

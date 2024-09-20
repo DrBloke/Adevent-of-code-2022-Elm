@@ -11,12 +11,15 @@ if (process.env.NODE_ENV === "development") {
 
 
 
+const field = location.pathname.slice(1);
+const storedDataRaw = localStorage.getItem(field);
+const storedData = storedDataRaw ? JSON.parse(storedDataRaw) : null;
 
 const root = document.querySelector("#app div");
 const app = Elm.Main.init({
     flags: {
         url: location.href,
-        storedData: null,
+        storedData: storedData,
     },
     node: root
 });
@@ -24,8 +27,8 @@ const app = Elm.Main.init({
 // Listen for commands from the `setStorage` port.
 // Turn the data to a string and put it in localStorage.
 // https://github.com/elm-community/js-integration-examples/tree/master/localStorage
-app.ports.setStorage.subscribe(function (state) {
-    localStorage.setItem('initial-data', JSON.stringify(state));
+app.ports.setStorage.subscribe(function ({ pathName, data }) {
+    localStorage.setItem(pathName, JSON.stringify(data));
 });
 
 /* Manage urls using Browser.element
@@ -36,7 +39,8 @@ app.ports.setStorage.subscribe(function (state) {
 window.addEventListener('popstate', function () {
     const field = location.pathname.slice(1);
     const storedData = localStorage.getItem(field);
-    const flags = storedData ? JSON.parse(storedData) : null;
+    console.log("storedData", storedData)
+    // const flags = storedData ? JSON.parse(storedData) : null;
     app.ports.onUrlChange.send({ url: location.href, storedData });
 });
 

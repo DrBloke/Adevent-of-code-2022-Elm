@@ -13,7 +13,7 @@ view notification =
         (Notification.view notification
             :: List.map
                 (\config ->
-                    Html.a [ Attributes.href (Types.identifier config) ] [ Html.text (Types.title config) ]
+                    Html.div [] [ Html.a [ Attributes.href (Types.identifier config) ] [ Html.text (Types.title config) ] ]
                 )
                 Route.allConfigs
         )
